@@ -1,4 +1,5 @@
 #include "coprocess.hh"
+#include "config.h"
 #include <stdlib.h>
 #include <unistd.h>
 #include <string>
@@ -10,13 +11,42 @@
 #include <pdns/misc.hh>
 #include <pdns/ahuexception.hh>
 
+#ifdef HAVE_BOOST_PROGRAM_OPTIONS_HPP
+#include <boost/program_options.hpp>
+namespace po = boost::program_options;
+#endif
+
 CoProcess::CoProcess(const string &command,int timeout, int infd, int outfd)
 {
+#ifdef HAVE_BOOST_PROGRAM_OPTIONS_HPP
+  const char **argv;
+  int argc = 0;
+  vector<string>::iterator it;
+#ifdef _WIN32
+  vector<string> args = po::split_winmain(command.c_str());
+#else
+  vector<string> args = po::split_unix(command.c_str());
+#endif
+
+  argv = (const char **)malloc(sizeof(char *) * (args.size() + 1));
+
+  for (it = args.begin(); it <= args.end(); it++)
+	  argv[argc] = args[argc++].c_str();
+
+  argv[argc] = NULL;
+#else
   const char *argv[2];
   argv[0]=strdup(command.c_str());
   argv[1]=0;
+#endif
 
   launch(argv,timeout,infd,outfd);
+
+#ifdef HAVE_BOOST_PROGRAM_OPTIONS_HPP
+  free(argv);
+#else
+  free((void *)argv[0]);
+#endif
 }
 
 CoProcess::CoProcess(const char **argv, int timeout, int infd, int outfd)
